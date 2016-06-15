@@ -2,132 +2,137 @@
 package Classes;
 
 
-   public class Dij {
+public class Dij {
 
-    private Grafo graph;
-    private String initialVertexLabel;
-    private HashMap<String, String> predecessors;
+    private List vertices;
+    private List relaciones;
+    private List nodos_visitados;
+    private List nodos_no_visitados;
+    private List predecesores;
+    private List distancia;
 
-    private HashMap<String, Integer> distances;
-
-    private PriorityQueue<Vertex> availableVertices;
-
-    private HashSet<Vertex> visitedVertices;
-
-     
-
-     
-
-    public Dijkstra(Graph graph, String initialVertexLabel){
-
-        this.graph = graph;
-
-        Set<String> vertexKeys = this.graph.vertexKeys();
-
-         
-
-        if(!vertexKeys.contains(initialVertexLabel)){
-
-            throw new IllegalArgumentException("The graph must contain the initial vertex.");
-
-        }
-
-         
-
-        this.initialVertexLabel = initialVertexLabel;
-
-        this.predecessors = new HashMap<String, String>();
-
-        this.distances = new HashMap<String, Integer>();
-
-        this.availableVertices = new PriorityQueue<Vertex>(vertexKeys.size(), new Comparator<Vertex>(){
-
-             
-
-            public int compare(Vertex one, Vertex two){
-
-                int weightOne = Dijkstra.this.distances.get(one.getLabel());
-
-                int weightTwo = Dijkstra.this.distances.get(two.getLabel());
-
-                return weightOne - weightTwo;
-
-            }
-
-        });
-
-         
-
-        this.visitedVertices = new HashSet<Vertex>();
-        for(String key: vertexKeys){
-
-            this.predecessors.put(key, null);
-
-            this.distances.put(key, Integer.MAX_VALUE);
-
-        }
-
-         
-        this.distances.put(initialVertexLabel, 0);
-        Vertex initialVertex = this.graph.getVertex(initialVertexLabel);
-
-        ArrayList<Edge> initialVertexNeighbors = initialVertex.getNeighbors();
-
-        for(Edge e : initialVertexNeighbors){
-
-            Vertex other = e.getNeighbor(initialVertex);
-
-            this.predecessors.put(other.getLabel(), initialVertexLabel);
-
-            this.distances.put(other.getLabel(), e.getWeight());
-
-            this.availableVertices.add(other);
-
-        }
-        this.visitedVertices.add(initialVertex);
-        processGraph();
+    public Dij(Grafo graph) {
+        this.vertices = graph.getVertices();
+        this.relaciones = graph.getRelaciones();
     }
-    private void processGraph(){
-        while(this.availableVertices.size() > 0){
-            Vertex next = this.availableVertices.poll();
 
-            int distanceToNext = this.distances.get(next.getLabel());
-            List<Edge> nextNeighbors = next.getNeighbors();    
-            for(Edge e: nextNeighbors){
-                Vertex other = e.getNeighbor(next);
-                if(this.visitedVertices.contains(other)){
-                    continue;
-                }
-                int currentWeight = this.distances.get(other.getLabel());
-                int newWeight = distanceToNext + e.getWeight();
-                 
-                if(newWeight < currentWeight){
-
-                    this.predecessors.put(other.getLabel(), next.getLabel());
-
-                    this.distances.put(other.getLabel(), newWeight);
-
-                    this.availableVertices.remove(other);
-
-                    this.availableVertices.add(other);
-
+    public void execute(Vertice source) {
+        nodos_visitados = new List();
+        nodos_no_visitados = new List();
+        distancia = new List();
+        predecesores = new List();
+        distancia.insert(new Distancia(source, 0), distancia.size());
+        nodos_no_visitados.insert(source, nodos_no_visitados.size());
+        while (nodos_no_visitados.size() > 0) {
+            Vertice node = getMinimum(nodos_no_visitados);
+            nodos_visitados.insert(node, nodos_visitados.size());
+            for (int i = 0; i < nodos_visitados.size(); i++) {
+                if (node.equals(nodos_no_visitados.get(i))) {
+                    nodos_no_visitados.delete(i);
                 }
             }
-
-            this.visitedVertices.add(next);
-
+            DistanciasMinimas(node);
         }
     }
-    public List<Vertex> getPathTo(String destinationLabel){
-        LinkedList<Vertex> path = new LinkedList<Vertex>();
-        path.add(graph.getVertex(destinationLabel));
-        while(!destinationLabel.equals(this.initialVertexLabel)){
-            Vertex predecessor = graph.getVertex(this.predecessors.get(destinationLabel));
-            destinationLabel = predecessor.getLabel();
-            path.add(0, predecessor);
+
+    private void DistanciasMinimas(Vertice node) {
+        List adjacentNodes = getNeighbors(node);
+        for (int i = 0; i < adjacentNodes.size(); i++) {
+            if (getMasCorto((Vertice)adjacentNodes.get(i)) > getMasCorto(node)
+                    + getDistance(node, (Vertice)adjacentNodes.get(i))) {
+                distancia.insert(new Distancia((Vertice)adjacentNodes.get(i), getMasCorto(node)
+                        + getDistance(node, (Vertice)adjacentNodes.get(i))), distancia.size());
+                predecesores.insert(new Predecesor((Vertice)adjacentNodes.get(i), node), predecesores.size());
+                nodos_no_visitados.insert((Vertice)adjacentNodes.get(i), nodos_no_visitados.size());
+            }
         }
+
+    }
+
+    private int getDistance(Vertice node, Vertice target) {
+        for (int i = 0; i < relaciones.size(); i++) {
+            if (((Relacion)relaciones.get(i)).getV1().equals(node)
+                    && ((Relacion)relaciones.get(i)).getV2().equals(target)) {
+                return ((Relacion)relaciones.get(i)).getLongitud();
+            }
+        }
+        return -1;
+    }
+
+    private List getNeighbors(Vertice node) {
+        List neighbors = new List();
+        for (int i = 0; i < relaciones.size(); i++) {
+            if (((Relacion)relaciones.get(i)).getV1().equals(node)
+                    && !isSettled(((Relacion)relaciones.get(i)).getV2())) {
+                neighbors.insert(((Relacion)relaciones.get(i)).getLongitud(), neighbors.size());
+            }
+        }
+        return neighbors;
+    }
+
+    private Vertice getMinimum(List vertexes) {
+        Vertice minimum = null;
+        for (int i = 0; i < vertexes.size(); i++) {
+            if (minimum == null) {
+                minimum = (Vertice)vertexes.get(i);
+            } else {
+                if (getMasCorto((Vertice)vertexes.get(i)) < getMasCorto(minimum)) {
+                    minimum = (Vertice)vertexes.get(i);
+                }
+            }
+        }
+        return minimum;
+    }
+
+    private boolean isSettled(Vertice vertex) {
+        boolean settled = false;
+        for (int i = 0; i < nodos_visitados.size(); i++) {
+            if (vertex.equals(nodos_visitados.get(i))) {
+                settled =  true;
+            }
+        }
+        return settled;
+    }
+
+    private int getMasCorto(Vertice destination) {
+        Integer d = null;
+        for (int i = 0; i < distancia.size(); i++) {
+            if (destination.equals(((Distancia)distancia.get(i)).getNode())) {
+                d = ((Distancia)distancia.get(i)).getDistance();
+            }
+        }
+        if (d == null) {
+            return Integer.MAX_VALUE;
+        } else {
+            return d;
+        }
+    }
+
+    public List getPath(Vertice target) {
+        List path = new List();
+        Vertice step = target;
+        boolean exists = false;
+        for (int i = 0; i < predecesores.size(); i++) {
+            if (step.equals(((Predecesor)predecesores.get(i)).getNode1()) || step.equals(((Predecesor)predecesores.get(i)).getNode2()) ) {
+                exists = true;
+            }
+        }
+        if (!exists) {
+            return null;
+        }
+        path.insert(step, path.size());
+        for (int i = 0; i < predecesores.size(); i++) {
+            if (step.equals(((Predecesor)predecesores.get(i)).getNode1()))  {
+                step = ((Predecesor)predecesores.get(i)).getNode1();
+                path.insert(step, path.size());
+            }else if (step.equals(((Predecesor)predecesores.get(i)).getNode2())) {
+                step = ((Predecesor)predecesores.get(i)).getNode2();
+                path.insert(step, path.size());
+            }
+        }
+
         return path;
     }
-    public int getDistanceTo(String destinationLabel){
-        return this.distances.get(destinationLabel);
-    }
+
+}
+
